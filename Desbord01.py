@@ -1,5 +1,4 @@
 # product_manager.py - Complete Updated Script
-
 import streamlit as st
 import pandas as pd
 import requests
@@ -9,6 +8,7 @@ import time
 from datetime import datetime, timedelta
 import os
 from pathlib import Path
+from io import BytesIO  # Added for Excel/CSV buffers
 
 # Page config
 st.set_page_config(
@@ -122,7 +122,7 @@ def get_all_products(store_url, consumer_key, consumer_secret):
     all_products = []
     page = 1
     per_page = 100
-    
+   
     while True:
         try:
             response = requests.get(
@@ -137,12 +137,12 @@ def get_all_products(store_url, consumer_key, consumer_secret):
                     break
                 all_products.extend(products)
                 page += 1
-                time.sleep(0.5)  # Rate limiting
+                time.sleep(0.5) # Rate limiting
             else:
                 break
         except:
             break
-    
+   
     return all_products
 
 def get_product_by_id(store_url, consumer_key, consumer_secret, product_id):
@@ -321,7 +321,7 @@ def call_gemini_api(api_key, messages):
                 "role": role,
                 "parts": [{"text": msg["content"]}]
             })
-        
+       
         # Use correct model name: gemini-1.5-flash or gemini-pro
         response = requests.post(
             f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={api_key}",
@@ -329,7 +329,7 @@ def call_gemini_api(api_key, messages):
             json={"contents": contents},
             timeout=60
         )
-        
+       
         if response.status_code == 200:
             result = response.json()
             return result["candidates"][0]["content"]["parts"][0]["text"]
@@ -351,23 +351,23 @@ def call_gemini_api(api_key, messages):
 
 def get_ai_response(provider, api_key, user_message, context=""):
     """Get AI response based on provider"""
-    system_message = f"""You are a helpful WooCommerce product management assistant. 
+    system_message = f"""You are a helpful WooCommerce product management assistant.
     Help users with:
     - Writing product titles, descriptions, and keywords
     - SEO optimization suggestions
     - Product categorization advice
     - Pricing strategies
     - Review responses
-    
+   
     Current context: {context}
-    
+   
     Be concise and practical in your responses."""
-    
+   
     messages = [
         {"role": "system", "content": system_message},
         {"role": "user", "content": user_message}
     ]
-    
+   
     if provider == "OpenAI (ChatGPT)":
         return call_openai_api(api_key, messages)
     else:
@@ -388,41 +388,41 @@ def login_page():
     """Login page with credential saving option"""
     st.title("🛍️ Hulara - WooCommerce Product Manager")
     st.markdown("---")
-    
+   
     # Load saved credentials
     saved_creds = load_saved_credentials()
-    
+   
     col1, col2, col3 = st.columns([1, 2, 1])
-    
+   
     with col2:
         st.subheader("🔐 Connect Your Store")
-        
+       
         # Pre-fill with saved credentials
         default_url = saved_creds.get("store_url", "") if saved_creds else ""
         default_key = saved_creds.get("consumer_key", "") if saved_creds else ""
         default_secret = saved_creds.get("consumer_secret", "") if saved_creds else ""
         default_ai_provider = saved_creds.get("ai_provider", "OpenAI (ChatGPT)") if saved_creds else "OpenAI (ChatGPT)"
         default_ai_key = saved_creds.get("ai_api_key", "") if saved_creds else ""
-        
+       
         store_url = st.text_input("Store URL", value=default_url, placeholder="https://yourstore.com")
         consumer_key = st.text_input("Consumer Key", value=default_key, placeholder="ck_xxxxxxxx")
         consumer_secret = st.text_input("Consumer Secret", value=default_secret, type="password", placeholder="cs_xxxxxxxx")
-        
+       
         st.markdown("---")
         st.subheader("🤖 AI Assistant (Optional)")
-        
+       
         ai_providers = ["OpenAI (ChatGPT)", "Google (Gemini)"]
         ai_provider_index = ai_providers.index(default_ai_provider) if default_ai_provider in ai_providers else 0
         ai_provider = st.selectbox("AI Provider", ai_providers, index=ai_provider_index)
         ai_api_key = st.text_input("AI API Key", value=default_ai_key, type="password", placeholder="Your API key")
-        
+       
         st.markdown("---")
-        
+       
         # Save credentials option
         save_creds = st.checkbox("💾 Save credentials locally", value=bool(saved_creds))
-        
+       
         col_btn1, col_btn2 = st.columns(2)
-        
+       
         with col_btn1:
             if st.button("🚀 Connect", type="primary", use_container_width=True):
                 if store_url and consumer_key and consumer_secret:
@@ -442,11 +442,11 @@ def login_page():
                                 st.session_state.consumer_secret = consumer_secret
                                 st.session_state.ai_provider = ai_provider
                                 st.session_state.ai_api_key = ai_api_key
-                                
+                               
                                 # Save credentials if requested
                                 if save_creds:
                                     save_credentials(store_url, consumer_key, consumer_secret, ai_provider, ai_api_key)
-                                
+                               
                                 st.success("✅ Connected successfully!")
                                 time.sleep(1)
                                 st.rerun()
@@ -456,7 +456,7 @@ def login_page():
                             st.error(f"❌ Error: {str(e)}")
                 else:
                     st.warning("Please fill all required fields")
-        
+       
         with col_btn2:
             if saved_creds and st.button("🗑️ Delete Saved", use_container_width=True):
                 delete_saved_credentials()
@@ -469,43 +469,43 @@ def ai_chatbot_sidebar():
     if not st.session_state.get('ai_api_key'):
         st.sidebar.info("💡 Add AI API key on login to enable chatbot")
         return
-    
+   
     st.sidebar.markdown("---")
     st.sidebar.subheader("🤖 AI Assistant")
-    
+   
     # Initialize chat history
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
-    
+   
     # Chat container
     chat_container = st.sidebar.container()
-    
+   
     # Display chat history
     with chat_container:
-        for msg in st.session_state.chat_history[-5:]:  # Show last 5 messages
+        for msg in st.session_state.chat_history[-5:]: # Show last 5 messages
             if msg["role"] == "user":
-                st.markdown(f'<div class="chat-message user-message">👤 {msg["content"]}</div>', 
+                st.markdown(f'<div class="chat-message user-message">👤 {msg["content"]}</div>',
                            unsafe_allow_html=True)
             else:
-                st.markdown(f'<div class="chat-message ai-message">🤖 {msg["content"]}</div>', 
+                st.markdown(f'<div class="chat-message ai-message">🤖 {msg["content"]}</div>',
                            unsafe_allow_html=True)
-    
+   
     # Input
     user_input = st.sidebar.text_input("Ask AI...", key="ai_input", placeholder="Help me write a product title...")
-    
+   
     col1, col2 = st.sidebar.columns(2)
     with col1:
         if st.button("📤 Send", use_container_width=True):
             if user_input:
                 # Add user message
                 st.session_state.chat_history.append({"role": "user", "content": user_input})
-                
+               
                 # Get context
                 context = ""
                 if 'current_product' in st.session_state and st.session_state.current_product:
                     p = st.session_state.current_product
                     context = f"Current product: {p.get('name', 'N/A')}, Price: {p.get('price', 'N/A')}"
-                
+               
                 # Get AI response
                 with st.spinner("Thinking..."):
                     response = get_ai_response(
@@ -514,10 +514,10 @@ def ai_chatbot_sidebar():
                         user_input,
                         context
                     )
-                
+               
                 st.session_state.chat_history.append({"role": "assistant", "content": response})
                 st.rerun()
-    
+   
     with col2:
         if st.button("🗑️ Clear", use_container_width=True):
             st.session_state.chat_history = []
@@ -526,7 +526,7 @@ def ai_chatbot_sidebar():
 def listing_update_tab():
     """Listing update tab with variations and delete"""
     st.header("📝 Listing Update")
-    
+   
     # Get products
     products, total = get_products_cached(
         st.session_state.store_url,
@@ -534,15 +534,15 @@ def listing_update_tab():
         st.session_state.consumer_secret,
         page=1, per_page=100
     )
-    
+   
     if not products:
         st.warning("No products found")
         return
-    
+   
     # Product selector
     product_options = {f"{p['id']} - {p['name']}": p['id'] for p in products}
     selected = st.selectbox("Select Product", list(product_options.keys()))
-    
+   
     if selected:
         product_id = product_options[selected]
         product = get_product_by_id(
@@ -551,54 +551,54 @@ def listing_update_tab():
             st.session_state.consumer_secret,
             product_id
         )
-        
+       
         if product:
             st.session_state.current_product = product
-            
+           
             # Show visibility badge
-            st.markdown(show_visibility_badge(product.get('catalog_visibility', 'visible')), 
+            st.markdown(show_visibility_badge(product.get('catalog_visibility', 'visible')),
                        unsafe_allow_html=True)
-            
+           
             # Tabs for different actions
             tab1, tab2, tab3, tab4 = st.tabs(["📝 Edit Details", "🎨 Variations", "➕ Add Variation", "🗑️ Delete"])
-            
+           
             with tab1:
                 # Basic details form
                 with st.form("update_form"):
                     name = st.text_input("Product Name", value=product.get('name', ''))
-                    
+                   
                     col1, col2 = st.columns(2)
                     with col1:
                         regular_price = st.text_input("Regular Price", value=product.get('regular_price', ''))
                     with col2:
                         sale_price = st.text_input("Sale Price", value=product.get('sale_price', ''))
-                    
+                   
                     description = st.text_area("Description", value=product.get('description', ''), height=150)
                     short_description = st.text_area("Short Description", value=product.get('short_description', ''), height=100)
-                    
+                   
                     # Visibility
                     visibility_options = ["visible", "catalog", "search", "hidden"]
                     current_visibility = product.get('catalog_visibility', 'visible')
                     visibility_index = visibility_options.index(current_visibility) if current_visibility in visibility_options else 0
                     visibility = st.selectbox("Visibility", visibility_options, index=visibility_index)
-                    
+                   
                     # Tags
                     current_tags = ", ".join([t['name'] for t in product.get('tags', [])])
                     tags_input = st.text_input("Tags (comma separated)", value=current_tags)
-                    
+                   
                     # SKU and Stock
                     col1, col2 = st.columns(2)
                     with col1:
                         sku = st.text_input("SKU", value=product.get('sku', ''))
                     with col2:
                         stock = st.number_input("Stock Quantity", value=product.get('stock_quantity') or 0)
-                    
+                   
                     submitted = st.form_submit_button("💾 Update Product", type="primary")
-                    
+                   
                     if submitted:
                         # Prepare tags
                         tags = [{"name": t.strip()} for t in tags_input.split(",") if t.strip()]
-                        
+                       
                         update_data = {
                             "name": name,
                             "regular_price": regular_price,
@@ -611,7 +611,7 @@ def listing_update_tab():
                             "stock_quantity": int(stock) if stock else None,
                             "manage_stock": True if stock else False
                         }
-                        
+                       
                         success, result = update_product(
                             st.session_state.store_url,
                             st.session_state.consumer_key,
@@ -619,13 +619,13 @@ def listing_update_tab():
                             product_id,
                             update_data
                         )
-                        
+                       
                         if success:
                             st.success("✅ Product updated!")
                             get_products_cached.clear()
                         else:
                             st.error(f"❌ Error: {result}")
-            
+           
             with tab2:
                 # Show existing variations
                 if product.get('type') == 'variable':
@@ -635,13 +635,13 @@ def listing_update_tab():
                         st.session_state.consumer_secret,
                         product_id
                     )
-                    
+                   
                     if variations:
                         st.subheader(f"📦 {len(variations)} Variations")
                         for var in variations:
                             attrs = var.get('attributes', [])
                             attr_str = ", ".join([f"{a['name']}: {a['option']}" for a in attrs])
-                            
+                           
                             with st.expander(f"🏷️ {var.get('sku', 'No SKU')} - {attr_str}"):
                                 st.write(f"**Price:** ₹{var.get('regular_price', 'N/A')}")
                                 st.write(f"**Sale Price:** ₹{var.get('sale_price', 'N/A')}")
@@ -652,20 +652,20 @@ def listing_update_tab():
                         st.info("No variations found")
                 else:
                     st.info("This is a simple product. Convert to variable product to add variations.")
-            
+           
             with tab3:
                 # Add new variation
                 st.subheader("➕ Add New Variation")
-                
+               
                 # Get product attributes
                 attributes = product.get('attributes', [])
-                
+               
                 if not attributes:
                     st.warning("No attributes defined. Add attributes first.")
                 else:
                     with st.form("add_variation_form"):
                         st.write("**Select Attributes:**")
-                        
+                       
                         variation_attrs = []
                         for attr in attributes:
                             if attr.get('variation', False):
@@ -678,7 +678,7 @@ def listing_update_tab():
                                     "name": attr['name'],
                                     "option": selected_option
                                 })
-                        
+                       
                         col1, col2 = st.columns(2)
                         with col1:
                             var_sku = st.text_input("Variation SKU")
@@ -686,9 +686,9 @@ def listing_update_tab():
                         with col2:
                             var_sale_price = st.text_input("Sale Price")
                             var_stock = st.number_input("Stock", min_value=0, value=0)
-                        
+                       
                         var_image = st.text_input("Image URL (optional)")
-                        
+                       
                         if st.form_submit_button("➕ Add Variation", type="primary"):
                             # First ensure product is variable type
                             if product.get('type') != 'variable':
@@ -699,7 +699,7 @@ def listing_update_tab():
                                     product_id,
                                     {"type": "variable"}
                                 )
-                            
+                           
                             # Create variation
                             var_data = {
                                 "regular_price": var_price,
@@ -709,10 +709,10 @@ def listing_update_tab():
                                 "manage_stock": True,
                                 "attributes": variation_attrs
                             }
-                            
+                           
                             if var_image:
                                 var_data["image"] = {"src": var_image}
-                            
+                           
                             success, result = create_variation(
                                 st.session_state.store_url,
                                 st.session_state.consumer_key,
@@ -720,24 +720,24 @@ def listing_update_tab():
                                 product_id,
                                 var_data
                             )
-                            
+                           
                             if success:
                                 st.success("✅ Variation added!")
                                 get_products_cached.clear()
                             else:
                                 st.error(f"❌ Error: {result}")
-            
+           
             with tab4:
                 # Delete product
                 st.subheader("🗑️ Delete Product")
                 st.warning(f"⚠️ You are about to delete: **{product.get('name')}**")
-                
+               
                 col1, col2 = st.columns(2)
                 with col1:
                     trash_btn = st.button("🗑️ Move to Trash", type="secondary", use_container_width=True)
                 with col2:
                     permanent_btn = st.button("❌ Delete Permanently", type="primary", use_container_width=True)
-                
+               
                 if trash_btn:
                     success, result = delete_product(
                         st.session_state.store_url,
@@ -753,7 +753,7 @@ def listing_update_tab():
                         st.rerun()
                     else:
                         st.error(f"❌ Error: {result}")
-                
+               
                 if permanent_btn:
                     confirm = st.checkbox("I understand this cannot be undone")
                     if confirm:
@@ -775,57 +775,84 @@ def listing_update_tab():
 def product_list_tab():
     """Product list with visibility and quick actions"""
     st.header("📦 Product List")
-    
+   
     # Pagination
     col1, col2 = st.columns([3, 1])
     with col2:
         page = st.number_input("Page", min_value=1, value=1)
-    
+   
     products, total = get_products_cached(
         st.session_state.store_url,
         st.session_state.consumer_key,
         st.session_state.consumer_secret,
         page=page, per_page=20
     )
-    
+   
     st.write(f"**Total Products:** {total}")
-    
+   
     if products:
         for product in products:
             with st.container():
                 col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
-                
+               
                 with col1:
                     images = product.get('images', [])
                     if images:
                         st.image(images[0].get('src', ''), width=80)
                     else:
                         st.write("🖼️")
-                
+               
                 with col2:
                     st.write(f"**{product.get('name', 'N/A')}**")
                     st.caption(f"SKU: {product.get('sku', 'N/A')} | Type: {product.get('type', 'simple')}")
-                    st.markdown(show_visibility_badge(product.get('catalog_visibility', 'visible')), 
+                    st.markdown(show_visibility_badge(product.get('catalog_visibility', 'visible')),
                                unsafe_allow_html=True)
-                
+               
                 with col3:
                     st.write(f"₹{product.get('price', 'N/A')}")
                     st.caption(f"Stock: {product.get('stock_quantity', '∞')}")
-                
+               
                 with col4:
                     if st.button("✏️", key=f"edit_{product['id']}"):
                         st.session_state.edit_product_id = product['id']
                         st.info(f"Go to Listing Update tab to edit product ID: {product['id']}")
-                
+               
                 st.markdown("---")
+
+def safe_excel_export(df, filename, mime_type):
+    """Safely export DataFrame to Excel with fallback to CSV"""
+    try:
+        buffer = BytesIO()
+        df.to_excel(buffer, index=False, engine='openpyxl')  # Explicit engine
+        buffer.seek(0)
+        st.download_button(
+            f"📥 Download {filename}",
+            data=buffer,
+            file_name=filename,
+            mime=mime_type
+        )
+        return True
+    except Exception as e:
+        st.error(f"Excel export failed: {str(e)}. Falling back to CSV...")
+        buffer = BytesIO()
+        df.to_csv(buffer, index=False)
+        buffer.seek(0)
+        csv_filename = filename.replace('.xlsx', '.csv')
+        st.download_button(
+            f"📥 Download CSV Fallback ({csv_filename})",
+            data=buffer,
+            file_name=csv_filename,
+            mime="text/csv"
+        )
+        return False
 
 def bulk_upload_tab():
     """Bulk upload via Excel"""
     st.header("📤 Bulk Upload")
-    
+   
     # Download template
     st.subheader("1️⃣ Download Template")
-    
+   
     template_data = {
         "name": ["Sample Product 1", "Sample Product 2"],
         "sku": ["SKU001", "SKU002"],
@@ -839,43 +866,33 @@ def bulk_upload_tab():
         "stock_quantity": [100, 50],
         "catalog_visibility": ["visible", "visible"]
     }
-    
+   
     template_df = pd.DataFrame(template_data)
-    
-    # Convert to Excel bytes
-    from io import BytesIO
-    buffer = BytesIO()
-    template_df.to_excel(buffer, index=False)
-    buffer.seek(0)
-    
-    st.download_button(
-        "📥 Download Template",
-        data=buffer,
-        file_name="product_upload_template.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    
+   
+    # Safe export
+    safe_excel_export(template_df, "product_upload_template.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+   
     st.markdown("---")
     st.subheader("2️⃣ Upload Products")
-    
+   
     uploaded_file = st.file_uploader("Upload Excel file", type=['xlsx', 'xls'])
-    
+   
     if uploaded_file:
         df = pd.read_excel(uploaded_file)
         st.write("**Preview:**")
         st.dataframe(df.head())
-        
+       
         if st.button("🚀 Upload Products", type="primary"):
             progress = st.progress(0)
             status = st.empty()
-            
+           
             success_count = 0
             error_count = 0
-            
+           
             for idx, row in df.iterrows():
                 progress.progress((idx + 1) / len(df))
                 status.text(f"Uploading {idx + 1}/{len(df)}: {row.get('name', 'Unknown')}")
-                
+               
                 # Prepare product data
                 product_data = {
                     "name": str(row.get('name', '')),
@@ -886,52 +903,52 @@ def bulk_upload_tab():
                     "short_description": str(row.get('short_description', '')),
                     "catalog_visibility": str(row.get('catalog_visibility', 'visible'))
                 }
-                
+               
                 # Categories
                 if pd.notna(row.get('categories')):
                     product_data["categories"] = [{"name": c.strip()} for c in str(row['categories']).split(",")]
-                
+               
                 # Tags
                 if pd.notna(row.get('tags')):
                     product_data["tags"] = [{"name": t.strip()} for t in str(row['tags']).split(",")]
-                
+               
                 # Images
                 if pd.notna(row.get('images')):
                     product_data["images"] = [{"src": img.strip()} for img in str(row['images']).split(",")]
-                
+               
                 # Stock
                 if pd.notna(row.get('stock_quantity')):
                     product_data["stock_quantity"] = int(row['stock_quantity'])
                     product_data["manage_stock"] = True
-                
+               
                 success, result = create_product(
                     st.session_state.store_url,
                     st.session_state.consumer_key,
                     st.session_state.consumer_secret,
                     product_data
                 )
-                
+               
                 if success:
                     success_count += 1
                 else:
                     error_count += 1
-                
-                time.sleep(0.5)  # Rate limiting
-            
+               
+                time.sleep(0.5) # Rate limiting
+           
             progress.progress(1.0)
             status.text("Complete!")
-            
+           
             st.success(f"✅ Uploaded: {success_count} | ❌ Errors: {error_count}")
             get_products_cached.clear()
 
 def analytics_tab():
     """Analytics with visibility stats"""
     st.header("📊 Analytics & Visibility Stats")
-    
+   
     # Time period selector
     period = st.selectbox("Time Period", ["Last 7 Days", "Last 30 Days", "Last 90 Days"])
     days = {"Last 7 Days": 7, "Last 30 Days": 30, "Last 90 Days": 90}[period]
-    
+   
     # Get data
     with st.spinner("Loading analytics..."):
         products = get_all_products(
@@ -945,34 +962,34 @@ def analytics_tab():
             st.session_state.consumer_secret,
             days=days
         )
-    
+   
     # Metrics
     col1, col2, col3, col4 = st.columns(4)
-    
+   
     with col1:
         st.metric("📦 Total Products", len(products))
-    
+   
     with col2:
         st.metric("🛒 Orders", len(orders))
-    
+   
     with col3:
         total_revenue = sum(float(o.get('total', 0)) for o in orders)
         st.metric("💰 Revenue", f"₹{total_revenue:,.0f}")
-    
+   
     with col4:
         avg_order = total_revenue / len(orders) if orders else 0
         st.metric("📈 Avg Order", f"₹{avg_order:,.0f}")
-    
+   
     st.markdown("---")
-    
+   
     # Visibility Distribution
     st.subheader("👁️ Product Visibility Distribution")
-    
+   
     visibility_counts = {"visible": 0, "catalog": 0, "search": 0, "hidden": 0}
     for p in products:
         vis = p.get('catalog_visibility', 'visible')
         visibility_counts[vis] = visibility_counts.get(vis, 0) + 1
-    
+   
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("✅ Visible", visibility_counts['visible'])
@@ -982,67 +999,67 @@ def analytics_tab():
         st.metric("🔍 Search Only", visibility_counts['search'])
     with col4:
         st.metric("🚫 Hidden", visibility_counts['hidden'])
-    
+   
     # Visibility chart
     vis_df = pd.DataFrame({
         "Visibility": list(visibility_counts.keys()),
         "Count": list(visibility_counts.values())
     })
     st.bar_chart(vis_df.set_index("Visibility"))
-    
+   
     st.markdown("---")
-    
+   
     # Product Status Overview
     st.subheader("📊 Product Status Overview")
-    
+   
     col1, col2 = st.columns(2)
-    
+   
     with col1:
         # Stock status
         in_stock = sum(1 for p in products if p.get('stock_status') == 'instock')
         out_of_stock = sum(1 for p in products if p.get('stock_status') == 'outofstock')
-        
+       
         st.write("**Stock Status:**")
         st.write(f"✅ In Stock: {in_stock}")
         st.write(f"❌ Out of Stock: {out_of_stock}")
-    
+   
     with col2:
         # Product types
         types = {}
         for p in products:
             t = p.get('type', 'simple')
             types[t] = types.get(t, 0) + 1
-        
+       
         st.write("**Product Types:**")
         for t, count in types.items():
             st.write(f"• {t.title()}: {count}")
-    
+   
     st.markdown("---")
-    
+   
     # Top Selling Products
     st.subheader("🏆 Top Selling Products")
-    
+   
     product_sales = {}
     for order in orders:
         for item in order.get('line_items', []):
             pid = item.get('product_id')
             product_sales[pid] = product_sales.get(pid, 0) + item.get('quantity', 0)
-    
+   
     if product_sales:
         sorted_sales = sorted(product_sales.items(), key=lambda x: x[1], reverse=True)[:10]
-        
+       
         for pid, qty in sorted_sales:
             product = next((p for p in products if p['id'] == pid), None)
             if product:
                 st.write(f"• **{product.get('name', 'Unknown')}** - {qty} sold")
     else:
         st.info("No sales data available for this period")
-    
+   
     st.markdown("---")
-    
+   
     # Listing Quality Issues
     st.subheader("⚠️ Listing Quality Issues")
-    
+   
     issues = {
         "Missing Images": [],
         "No Description": [],
@@ -1050,7 +1067,7 @@ def analytics_tab():
         "Hidden Products": [],
         "No Tags": []
     }
-    
+   
     for p in products:
         if not p.get('images'):
             issues["Missing Images"].append(p['name'])
@@ -1062,11 +1079,11 @@ def analytics_tab():
             issues["Hidden Products"].append(p['name'])
         if not p.get('tags'):
             issues["No Tags"].append(p['name'])
-    
+   
     for issue, products_list in issues.items():
         if products_list:
             with st.expander(f"❌ {issue} ({len(products_list)})"):
-                for name in products_list[:20]:  # Show first 20
+                for name in products_list[:20]: # Show first 20
                     st.write(f"• {name}")
                 if len(products_list) > 20:
                     st.write(f"... and {len(products_list) - 20} more")
@@ -1074,7 +1091,7 @@ def analytics_tab():
 def reviews_tab():
     """Reviews management tab"""
     st.header("⭐ Reviews Management")
-    
+   
     # Get reviews
     with st.spinner("Loading reviews..."):
         reviews = get_product_reviews(
@@ -1082,11 +1099,11 @@ def reviews_tab():
             st.session_state.consumer_key,
             st.session_state.consumer_secret
         )
-    
+   
     if not reviews:
         st.info("No reviews found")
         return
-    
+   
     # Stats
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -1097,12 +1114,12 @@ def reviews_tab():
     with col3:
         pending = sum(1 for r in reviews if r.get('status') == 'hold')
         st.metric("⏳ Pending Approval", pending)
-    
+   
     st.markdown("---")
-    
+   
     # Filter
     filter_status = st.selectbox("Filter by Status", ["All", "Approved", "Pending", "Spam"])
-    
+   
     filtered_reviews = reviews
     if filter_status == "Approved":
         filtered_reviews = [r for r in reviews if r.get('status') == 'approved']
@@ -1110,7 +1127,7 @@ def reviews_tab():
         filtered_reviews = [r for r in reviews if r.get('status') == 'hold']
     elif filter_status == "Spam":
         filtered_reviews = [r for r in reviews if r.get('status') == 'spam']
-    
+   
     # Display reviews
     for review in filtered_reviews:
         with st.expander(f"{'⭐' * review.get('rating', 0)} - {review.get('reviewer', 'Anonymous')}"):
@@ -1118,9 +1135,9 @@ def reviews_tab():
             st.write(f"**Date:** {review.get('date_created', 'N/A')[:10]}")
             st.write(f"**Status:** {review.get('status', 'N/A')}")
             st.write(f"**Review:** {review.get('review', 'No content')}")
-            
+           
             col1, col2, col3 = st.columns(3)
-            
+           
             with col1:
                 if st.button("✅ Approve", key=f"approve_{review['id']}"):
                     if update_review(
@@ -1132,7 +1149,7 @@ def reviews_tab():
                     ):
                         st.success("Approved!")
                         st.rerun()
-            
+           
             with col2:
                 if st.button("🚫 Spam", key=f"spam_{review['id']}"):
                     if update_review(
@@ -1144,7 +1161,7 @@ def reviews_tab():
                     ):
                         st.success("Marked as spam!")
                         st.rerun()
-            
+           
             with col3:
                 if st.button("🗑️ Delete", key=f"delete_review_{review['id']}"):
                     if delete_review(
@@ -1159,9 +1176,9 @@ def reviews_tab():
 def reports_tab():
     """Reports download tab"""
     st.header("📥 Reports")
-    
+   
     col1, col2 = st.columns(2)
-    
+   
     with col1:
         st.subheader("📦 All Products Report")
         if st.button("📥 Generate Products Report", use_container_width=True):
@@ -1171,14 +1188,14 @@ def reports_tab():
                     st.session_state.consumer_key,
                     st.session_state.consumer_secret
                 )
-                
+               
                 # Prepare data including variations
                 report_data = []
                 progress = st.progress(0)
-                
+               
                 for idx, p in enumerate(products):
                     progress.progress((idx + 1) / len(products))
-                    
+                   
                     # Parent product
                     report_data.append({
                         "ID": p['id'],
@@ -1193,7 +1210,7 @@ def reports_tab():
                         "Categories": ", ".join([c['name'] for c in p.get('categories', [])]),
                         "Tags": ", ".join([t['name'] for t in p.get('tags', [])])
                     })
-                    
+                   
                     # Get variations if variable
                     if p.get('type') == 'variable':
                         variations = get_product_variations(
@@ -1219,25 +1236,20 @@ def reports_tab():
                                 "Tags": ""
                             })
                         time.sleep(0.3)
-                
+               
                 df = pd.DataFrame(report_data)
-                
-                from io import BytesIO
-                buffer = BytesIO()
-                df.to_excel(buffer, index=False)
-                buffer.seek(0)
-                
-                st.download_button(
-                    "📥 Download Excel",
-                    data=buffer,
-                    file_name=f"products_report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+               
+                # Safe export
+                safe_excel_export(
+                    df,
+                    f"products_report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
-    
+   
     with col2:
         st.subheader("🛒 Orders Report")
         days = st.number_input("Days", min_value=7, max_value=365, value=30)
-        
+       
         if st.button("📥 Generate Orders Report", use_container_width=True):
             with st.spinner("Generating report..."):
                 orders = get_orders(
@@ -1246,7 +1258,7 @@ def reports_tab():
                     st.session_state.consumer_secret,
                     days=days
                 )
-                
+               
                 report_data = []
                 for o in orders:
                     report_data.append({
@@ -1258,19 +1270,14 @@ def reports_tab():
                         "Email": o.get('billing', {}).get('email', ''),
                         "Items": len(o.get('line_items', []))
                     })
-                
+               
                 df = pd.DataFrame(report_data)
-                
-                from io import BytesIO
-                buffer = BytesIO()
-                df.to_excel(buffer, index=False)
-                buffer.seek(0)
-                
-                st.download_button(
-                    "📥 Download Excel",
-                    data=buffer,
-                    file_name=f"orders_report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+               
+                # Safe export
+                safe_excel_export(
+                    df,
+                    f"orders_report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
 def main():
@@ -1278,47 +1285,47 @@ def main():
     # Initialize session state
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
-    
+   
     if not st.session_state.logged_in:
         login_page()
     else:
         # Sidebar
         st.sidebar.title("🛍️ Hulara")
         st.sidebar.write(f"Connected: {st.session_state.store_url}")
-        
+       
         if st.sidebar.button("🚪 Logout"):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
-        
+       
         # AI Chatbot in sidebar
         ai_chatbot_sidebar()
-        
+       
         # Main tabs
         tabs = st.tabs([
             "📝 Listing Update",
-            "📦 Product List", 
+            "📦 Product List",
             "📤 Bulk Upload",
             "📊 Analytics",
             "⭐ Reviews",
             "📥 Reports"
         ])
-        
+       
         with tabs[0]:
             listing_update_tab()
-        
+       
         with tabs[1]:
             product_list_tab()
-        
+       
         with tabs[2]:
             bulk_upload_tab()
-        
+       
         with tabs[3]:
             analytics_tab()
-        
+       
         with tabs[4]:
             reviews_tab()
-        
+       
         with tabs[5]:
             reports_tab()
 
